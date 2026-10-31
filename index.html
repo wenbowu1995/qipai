@@ -24,8 +24,25 @@
   .card h2 { font-size:18px; margin:10px 0 6px; }
   .card p { font-size:13px; opacity:.75; margin:0; line-height:1.6; }
   footer { margin-top:18px; font-size:12px; opacity:.55; line-height:1.7; }
+  .wx-mask { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:9999; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .wx-mask[hidden] { display:none; }
+  .wx-tip { position:relative; max-width:340px; text-align:center; background:#2e2620; border:1px solid #4a3c2c; border-radius:14px; padding:24px 20px 18px; box-shadow:0 12px 36px rgba(0,0,0,.55); }
+  .wx-tip .arrow { position:absolute; top:-54px; right:-6px; font-size:46px; color:#ffd54f; }
+  .wx-tip h2 { font-size:20px; margin:8px 0; }
+  .wx-tip p { font-size:14px; opacity:.9; line-height:1.8; margin:6px 0; }
+  .wx-tip .sub { font-size:12px; opacity:.6; }
+  .wx-tip button { margin-top:16px; font:inherit; padding:8px 18px; border-radius:8px; border:1px solid #a9713c; background:#8e5b2e; color:#f0e6d2; cursor:pointer; }
 </style>
 </head>
+<div class="wx-mask" id="wxMask" hidden>
+  <div class="wx-tip">
+    <div class="arrow">↗</div>
+    <h2>请在浏览器中打开</h2>
+    <p>点击右上角 <b>···</b> → <b>在浏览器打开</b></p>
+    <p class="sub">这样才能把「棋牌」安装到桌面，安装后可离线玩。</p>
+    <button id="wxClose">我知道了</button>
+  </div>
+</div>
 <body>
 <div class="wrap">
   <h1>棋牌</h1>
@@ -44,6 +61,17 @@
   </div>
   <footer>在浏览器菜单里选「添加到主屏幕 / 安装应用」，即可像 App 一样使用；首次打开后断网也能玩。</footer>
 </div>
+<script>
+(function () {
+  var isWx = /MicroMessenger/i.test(navigator.userAgent);
+  var force = /[?&]wx=1\b/.test(location.search);
+  if (!isWx && !force) return;
+  var mask = document.getElementById("wxMask");
+  if (!mask) return;
+  mask.hidden = false;
+  document.getElementById("wxClose").addEventListener("click", function () { mask.hidden = true; });
+})();
+</script>
 <script>
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", function () {
