@@ -1,6 +1,5 @@
-const CACHE = "qipai-v1";
+const CACHE = "qipai-v2";
 const ASSETS = [
-  "./",
   "./index.html",
   "./xiangqi.html",
   "./heqie.html",
@@ -11,7 +10,11 @@ const ASSETS = [
 ];
 self.addEventListener("install", function (e) {
   e.waitUntil(
-    caches.open(CACHE).then(function (c) { return c.addAll(ASSETS); }).then(function () { return self.skipWaiting(); })
+    caches.open(CACHE).then(function (c) {
+      return Promise.all(ASSETS.map(function (u) {
+        return c.add(u).catch(function () { });
+      }));
+    }).then(function () { return self.skipWaiting(); })
   );
 });
 self.addEventListener("activate", function (e) {
@@ -23,14 +26,14 @@ self.addEventListener("activate", function (e) {
 });
 self.addEventListener("fetch", function (e) {
   if (e.request.method !== "GET") return;
-  const url = new URL(e.request.url);
+  var url = new URL(e.request.url);
   if (url.origin !== location.origin) return;
   e.respondWith(
     caches.match(e.request).then(function (hit) {
       if (hit) return hit;
       return fetch(e.request).then(function (res) {
         if (res && res.ok) {
-          const copy = res.clone();
+          var copy = res.clone();
           caches.open(CACHE).then(function (c) { c.put(e.request, copy); });
         }
         return res;
