@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>棋牌 · 象棋与麻将</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2b2118">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root { --bg:#1f1a16; --panel:#2e2620; --ink:#f0e6d2; --gold:#a9713c; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink);
+         font-family:"Microsoft YaHei","PingFang SC",sans-serif; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .wrap { width:100%; max-width:760px; }
+  h1 { font-size:26px; margin:0 0 4px; }
+  .sub { opacity:.7; font-size:13px; margin-bottom:20px; }
+  .cards { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  @media (max-width:560px) { .cards { grid-template-columns:1fr; } }
+  a.card { display:block; text-decoration:none; color:inherit; background:var(--panel); border:1px solid #443a2e;
+           border-radius:14px; padding:18px; transition:transform .1s, border-color .1s; }
+  a.card:hover { transform:translateY(-2px); border-color:var(--gold); }
+  .card .emoji { font-size:34px; line-height:1; }
+  .card h2 { font-size:18px; margin:10px 0 6px; }
+  .card p { font-size:13px; opacity:.75; margin:0; line-height:1.6; }
+  footer { margin-top:18px; font-size:12px; opacity:.55; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>棋牌</h1>
+  <div class="sub">象棋与麻将，纯本地运行，可离线使用。</div>
+  <div class="cards">
+    <a class="card" href="xiangqi.html">
+      <div class="emoji">♟️</div>
+      <h2>中国象棋</h2>
+      <p>人机对战、失误点评（亏在哪 + 建议）、FEN 载入。</p>
+    </a>
+    <a class="card" href="heqie.html">
+      <div class="emoji">🀄</div>
+      <h2>麻将何切</h2>
+      <p>随机出题或自选 14 张，按缺牌数、进张、两头搭判分。</p>
+    </a>
+  </div>
+  <footer>在浏览器菜单里选「添加到主屏幕 / 安装应用」，即可像 App 一样使用；首次打开后断网也能玩。</footer>
+</div>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2b2118">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>麻将何切训练器</title>
+<style>
+  :root { --bg:#1f1a16; --panel:#2e2620; --card:#f6f1e6; --ink:#2b2118; --red:#b03028; --blue:#2b3a8f; --green:#1e7a46; }
+  * { box-sizing:border-box; }
+  body { margin:0; padding:16px; background:var(--bg); color:#f0e6d2; font-family:"Microsoft YaHei","PingFang SC",sans-serif; }
+  .wrap { max-width:780px; margin:0 auto; }
+  h1 { font-size:20px; margin:0 0 4px; }
+  .sub { font-size:12px; opacity:.7; margin-bottom:12px; line-height:1.6; }
+  .panel { background:var(--panel); border-radius:12px; padding:12px; margin-bottom:12px; }
+  .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button { font:inherit; padding:8px 14px; border-radius:8px; border:1px solid #6b4f33; background:#4a3728; color:#f0e6d2; cursor:pointer; }
+  button:hover { background:#5b4432; }
+  button.primary { background:#8e5b2e; border-color:#a9713c; }
+  label { font-size:13px; opacity:.9; display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+  .stats { font-size:13px; opacity:.85; margin-top:10px; }
+  .hand { display:flex; flex-wrap:wrap; gap:8px; min-height:76px; }
+  .tile { width:50px; height:68px; border-radius:8px; background:linear-gradient(180deg,#fffdf7,#efe6d2); color:var(--ink);
+          border:1px solid #b9a889; box-shadow:0 2px 4px rgba(0,0,0,.25); display:flex; flex-direction:column;
+          align-items:center; justify-content:center; cursor:pointer; user-select:none; transition:transform .08s; }
+  .tile:hover { transform:translateY(-4px); }
+  .tile .n { font-size:24px; font-weight:700; line-height:1; }
+  .tile .s { font-size:12px; opacity:.75; margin-top:2px; }
+  .tile.m { color:var(--red); } .tile.p { color:var(--blue); } .tile.s { color:var(--green); } .tile.z { color:#333; }
+  .tile.played { outline:3px solid #ffd54f; outline-offset:1px; }
+  .tile.best { outline:3px solid #6fbf73; outline-offset:1px; }
+  .tile.dim { opacity:.4; }
+  .tile.disabled { cursor:default; }
+  .tile.disabled:hover { transform:none; }
+  .feedback { font-size:15px; min-height:24px; margin-top:10px; line-height:1.6; }
+  .feedback.ok { color:#7fd18a; } .feedback.bad { color:#e08a8a; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { padding:5px 6px; text-align:left; border-bottom:1px solid #443a2e; }
+  th { opacity:.7; font-weight:normal; }
+  tr.best td { color:#8fd39a; }
+  td.kinds { font-size:12px; opacity:.85; }
+  td.uke .sub { font-size:11px; opacity:.6; margin-top:2px; }
+  .picker { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+  .pick { width:46px; height:58px; border-radius:8px; background:linear-gradient(180deg,#fffdf7,#efe6d2);
+          color:var(--ink); border:1px solid #b9a889; display:flex; flex-direction:column; align-items:center;
+          justify-content:center; cursor:pointer; user-select:none; }
+  .pick .n { font-size:18px; font-weight:700; line-height:1; }
+  .pick .s { font-size:10px; opacity:.75; }
+  .pick .c { font-size:11px; margin-top:2px; opacity:.7; }
+  .pick.m { color:var(--red); } .pick.p { color:var(--blue); } .pick.s { color:var(--green); } .pick.z { color:#333; }
+  .pick.on { outline:3px solid #ffd54f; outline-offset:1px; }
+  tr.chosen td { background:#3a2f24; }
+  .review { font-size:12px; opacity:.85; line-height:1.9; }
+  .review .item { padding:4px 0; border-bottom:1px dashed #3a2f24; }
+  .review .replay { color:#ffd54f; cursor:pointer; margin-left:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>麻将何切训练器</h1>
+  <div class="sub">默认规则：只有筒、条两门；不能吃，只能碰杠。点一张牌表示“打出它”，软件按缺牌数和有效进张判分。</div>
+
+  <div class="panel">
+    <div class="row">
+      <span>牌种：</span>
+      <label><input type="checkbox" data-suit="m">万</label>
+      <label><input type="checkbox" data-suit="p" checked>筒</label>
+      <label><input type="checkbox" data-suit="s" checked>条</label>
+      <label><input type="checkbox" data-suit="z">字</label>
+      <button id="newBtn" class="primary">新题</button>
+      <button id="manualBtn">选牌</button>
+      <button id="resetBtn">重置统计</button>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <div class="panel" id="pickerPanel" style="display:none">
+    <div class="row" style="justify-content:space-between">
+      <strong style="font-size:14px">点牌加入手牌（再点一次 0→1→2→3→4 循环）</strong>
+      <span id="pickerCount" style="font-size:13px;opacity:.8"></span>
+    </div>
+    <div class="picker" id="pickerGrid"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="pickerClear">清空</button>
+      <button id="pickerStart" class="primary">开始分析</button>
+      <button id="pickerClose">关闭</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="hand" id="hand"></div>
+    <div class="feedback" id="feedback"></div>
+  </div>
+
+  <div class="panel" id="resultPanel" style="display:none">
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>打这张</th><th>缺几张听牌</th><th>有效进张</th><th>能进的牌</th></tr></thead>
+        <tbody id="candBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel" id="reviewPanel" style="display:none">
+    <div class="review" id="review"></div>
+  </div>
+</div>
+<script>
+(function () {
+  "use strict";
+  const SUITS = [
+    { key: "m", label: "万", count: 9 },
+    { key: "p", label: "筒", count: 9 },
+    { key: "s", label: "条", count: 9 },
+    { key: "z", label: "字", count: 7, names: ["东", "南", "西", "北", "中", "发", "白"] }
+  ];
+  const active = new Set(["p", "s"]);
+  let kinds = [];
+  let shantenFn = null;
+  const state = { hand: [], eval: null, played: -1, reviewing: false, total: 0, correct: 0, lossSum: 0, lossCount: 0, behind: 0, review: [] };
+
+  function buildShanten(ks) {
+    const n = ks.length;
+    const startOf = {};
+    ks.forEach((k, i) => { if (!(k.suit in startOf)) startOf[k.suit] = i; });
+    function sameSuit(i, d) {
+      if (ks[i].suit === "z") return -1;
+      const rel = i - startOf[ks[i].suit];
+      if (rel + d > 8) return -1;
+      return i + d;
+    }
+    function dfs(c, i, m, p, pair) {
+      if (i >= n) return 8 - 2 * m - p - pair;
+      if (c[i] === 0) return dfs(c, i + 1, m, p, pair);
+      let best = 1e9;
+      c[i]--; best = Math.min(best, dfs(c, i, m, p, pair)); c[i]++;
+      if (m + p < 4) {
+        if (c[i] >= 3) { c[i] -= 3; best = Math.min(best, dfs(c, i, m + 1, p, pair)); c[i] += 3; }
+        const i1 = sameSuit(i, 1), i2 = sameSuit(i, 2);
+        if (i1 >= 0 && i2 >= 0 && c[i1] > 0 && c[i2] > 0) {
+          c[i]--; c[i1]--; c[i2]--; best = Math.min(best, dfs(c, i, m + 1, p, pair)); c[i]++; c[i1]++; c[i2]++;
+        }
+        if (c[i] >= 2) { c[i] -= 2; best = Math.min(best, dfs(c, i, m, p + 1, pair)); c[i] += 2; }
+        if (i1 >= 0 && c[i1] > 0) { c[i]--; c[i1]--; best = Math.min(best, dfs(c, i, m, p + 1, pair)); c[i]++; c[i1]++; }
+        if (i2 >= 0 && c[i2] > 0) { c[i]--; c[i2]--; best = Math.min(best, dfs(c, i, m, p + 1, pair)); c[i]++; c[i2]++; }
+      }
+      if (!pair && c[i] >= 2) { c[i] -= 2; best = Math.min(best, dfs(c, i, m, p, 1)); c[i] += 2; }
+      return best;
+    }
+    return function (counts) {
+      const std = dfs(counts.slice(), 0, 0, 0, 0);
+      let pairs = 0, distinct = 0;
+      for (let i = 0; i < counts.length; i++) {
+        if (counts[i] > 0) distinct++;
+        pairs += Math.floor(counts[i] / 2);
+      }
+      const chiitoi = 6 - pairs + Math.max(0, 7 - distinct);
+      return Math.min(std, chiitoi);
+    };
+  }
+
+  function rebuildKinds() {
+    kinds = [];
+    for (const s of SUITS) {
+      if (!active.has(s.key)) continue;
+      for (let n = 1; n <= s.count; n++) {
+        kinds.push({ suit: s.key, num: n, label: s.names ? s.names[n - 1] : String(n), suitLabel: s.names ? "" : s.label });
+      }
+    }
+    shantenFn = buildShanten(kinds);
+  }
+
+  function shapeOf(counts, t) {
+    const k = kinds[t];
+    if (k.suit === "z") return counts[t] > 0 ? "pair" : "other";
+    const start = kinds.findIndex(x => x.suit === k.suit);
+    const r = t - start;
+    const at = d => (r + d >= 0 && r + d <= 8 ? counts[start + r + d] : 0);
+    const up = at(1) > 0 && at(2) > 0;
+    const down = at(-2) > 0 && at(-1) > 0;
+    const mid = at(-1) > 0 && at(1) > 0;
+    if (up) return r <= 5 ? "ryanmen" : "penchan";
+    if (down) return r >= 3 ? "ryanmen" : "penchan";
+    if (mid) return "kanchan";
+    if (counts[t] > 0) return "pair";
+    return "other";
+  }
+
+  function ukeireOf(counts) {
+    const now = shantenFn(counts);
+    let total = 0, kindCnt = 0, tiles = [], good = 0;
+    for (let t = 0; t < kinds.length; t++) {
+      if (counts[t] >= 4) continue;
+      counts[t]++;
+      const s = shantenFn(counts);
+      counts[t]--;
+      if (s < now) {
+        const left = 4 - counts[t];
+        total += left; kindCnt++; tiles.push(t);
+        if (shapeOf(counts, t) === "ryanmen") good += left;
+      }
+    }
+    return { total: total, kindCnt: kindCnt, tiles: tiles, good: good };
+  }
+
+  function evaluate(hand) {
+    const counts = new Array(kinds.length).fill(0);
+    for (const t of hand) counts[t]++;
+    const out = [];
+    for (let t = 0; t < kinds.length; t++) {
+      if (!counts[t]) continue;
+      counts[t]--;
+      const s = shantenFn(counts);
+      const u = ukeireOf(counts);
+      counts[t]++;
+      out.push({ tile: t, shanten: s, ukeire: u.total, kindCnt: u.kindCnt, tiles: u.tiles, good: u.good });
+    }
+    out.sort((a, b) => a.shanten - b.shanten || b.ukeire - a.ukeire || b.good - a.good || b.kindCnt - a.kindCnt);
+    return out;
+  }
+
+  function deal() {
+    for (let attempt = 0; attempt < 400; attempt++) {
+      const pool = [];
+      for (let t = 0; t < kinds.length; t++) for (let k = 0; k < 4; k++) pool.push(t);
+      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp; }
+      const hand = pool.slice(0, 14);
+      if (hand.length < 14) return null;
+      const counts = new Array(kinds.length).fill(0);
+      hand.forEach(t => counts[t]++);
+      const s = shantenFn(counts);
+      if (s >= 0 && s <= 2) return hand;
+    }
+    return null;
+  }
+
+  function tileName(t) {
+    const k = kinds[t];
+    return k.suit === "z" ? k.label : k.num + k.suitLabel;
+  }
+
+  function tileHtml(t) {
+    const k = kinds[t];
+    if (k.suit === "z") return '<div class="n" style="font-size:22px">' + k.label + '</div>';
+    return '<div class="n">' + k.num + '</div><div class="s">' + k.suitLabel + '</div>';
+  }
+
+  function handCounts(hand) {
+    const c = new Array(kinds.length).fill(0);
+    for (const t of hand) c[t]++;
+    return c;
+  }
+
+  function newQuestion() {
+    state.played = -1;
+    state.reviewing = false;
+    document.getElementById("resultPanel").style.display = "none";
+    const hand = deal();
+    const fb = document.getElementById("feedback");
+    if (!hand) { fb.className = "feedback bad"; fb.textContent = "当前牌种凑不出合适的题，多勾一个花色试试。"; document.getElementById("hand").innerHTML = ""; return; }
+    state.hand = hand.slice().sort((a, b) => a - b);
+    state.eval = evaluate(state.hand);
+    fb.className = "feedback";
+    fb.textContent = "选一张要打的牌。";
+    renderHand();
+  }
+
+  function renderHand() {
+    const el = document.getElementById("hand");
+    el.innerHTML = "";
+    const counts = handCounts(state.hand);
+    state.hand.forEach((t, i) => {
+      const d = document.createElement("div");
+      d.className = "tile " + kinds[t].suit;
+      d.innerHTML = tileHtml(t);
+      if (state.played >= 0) {
+        d.classList.add("disabled");
+        if (t === state.played) d.classList.add("played");
+        else if (state.eval && t === state.eval[0].tile) d.classList.add("best");
+        else d.classList.add("dim");
+      } else {
+        d.addEventListener("click", () => play(t));
+      }
+      el.appendChild(d);
+    });
+  }
+
+  function play(t) {
+    if (state.played >= 0) return;
+    state.played = t;
+    const chosen = state.eval.find(e => e.tile === t);
+    const best = state.eval[0];
+    const shDiff = chosen.shanten - best.shanten;
+    const uDiff = best.ukeire - chosen.ukeire;
+    const isBest = shDiff === 0 && uDiff === 0;
+    const isNear = shDiff === 0 && uDiff > 0 && uDiff <= 2;
+    let loss = 0;
+    if (!state.reviewing) {
+      state.total++;
+      if (isBest || isNear) state.correct++;
+      if (shDiff > 0) { state.behind++; loss = 99; }
+      else { loss = Math.max(0, uDiff); state.lossSum += loss; state.lossCount++; }
+      if (!isBest && !isNear) {
+        state.review.unshift({ hand: state.hand.slice(), chosen: t, best: best.tile, loss: loss });
+        if (state.review.length > 12) state.review.pop();
+      }
+      saveStats();
+    }
+    updateStats();
+    renderHand();
+    showResult(chosen, best, isBest, isNear, loss);
+  }
+
+  function shantenText(s) {
+    if (s === -1) return "和牌";
+    if (s === 0) return "已听牌";
+    return "缺 " + s + " 张听牌";
+  }
+
+  function showResult(chosen, best, isBest, isNear, loss) {
+    const fb = document.getElementById("feedback");
+    const prefix = state.reviewing ? "（复习，不计分）" : "";
+    const yourSh = shantenText(chosen.shanten);
+    const bestSh = shantenText(best.shanten);
+    if (isBest) {
+      fb.className = "feedback ok";
+      fb.textContent = "✓ 最佳选择：打 " + tileName(chosen.tile) + "，" + yourSh + "，有效进张 " + chosen.ukeire + " 张（两头搭 " + chosen.good + " 张 / " + chosen.kindCnt + " 种）。" + prefix;
+    } else if (isNear) {
+      fb.className = "feedback ok";
+      fb.textContent = "✓ 接近最佳：打 " + tileName(chosen.tile) + "（" + yourSh + "，进张 " + chosen.ukeire + " 张 / 两头搭 " + chosen.good + " 张），最佳 " + tileName(best.tile) + " 也只是多 " + (best.ukeire - chosen.ukeire) + " 张进张，可以算对。" + prefix;
+    } else {
+      let msg = "✗ 你打 " + tileName(chosen.tile) + "（" + yourSh + "，进张 " + chosen.ukeire + " 张 / 两头搭 " + chosen.good + " 张）";
+      if (chosen.shanten > best.shanten) msg += "，缺牌比最佳多 " + (chosen.shanten - best.shanten) + " 张";
+      else msg += "，比最佳少 " + (best.ukeire - chosen.ukeire) + " 张进张";
+      msg += "。最佳是打 " + tileName(best.tile) + "（" + bestSh + "，进张 " + best.ukeire + " 张 / 两头搭 " + best.good + " 张）。";
+      fb.className = "feedback bad";
+      fb.textContent = msg + prefix;
+    }
+    const body = document.getElementById("candBody");
+    body.innerHTML = "";
+    for (const e of state.eval) {
+      const tr = document.createElement("tr");
+      if (e === state.eval[0]) tr.className = "best";
+      else if (e.tile === chosen.tile) tr.className = "chosen";
+      const sh = e.shanten === -1 ? "和牌" : e.shanten;
+      tr.innerHTML = "<td>" + tileName(e.tile) + "</td><td>" + sh + "</td><td class='uke'>" + e.ukeire + "<div class='sub'>两头搭 " + e.good + "</div></td><td class='kinds'>" + kindListText(e) + "</td>";
+      body.appendChild(tr);
+    }
+    document.getElementById("resultPanel").style.display = "";
+    renderReview();
+  }
+
+  function kindListText(e) {
+    const maxKinds = window.innerWidth < 640 ? 4 : 8;
+    if (!e.tiles || !e.tiles.length) return "—";
+    if (e.kindCnt > maxKinds) return e.kindCnt + " 种";
+    const txt = e.tiles.map(function (t) { return tileName(t); }).join(" ");
+    return txt.length <= 30 ? txt : e.kindCnt + " 种";
+  }
+
+  function updateStats() {
+    const rate = state.total ? Math.round(100 * state.correct / state.total) : 0;
+    const avgLoss = state.lossCount ? (state.lossSum / state.lossCount).toFixed(1) : "0";
+    document.getElementById("stats").textContent =
+      "题数 " + state.total + " · 最佳命中 " + state.correct + " · 正确率 " + rate + "% · 平均少 " + avgLoss + " 张进张" +
+      (state.behind ? " · 缺牌落后 " + state.behind + " 次" : "");
+  }
+
+  function renderReview() {
+    const panel = document.getElementById("reviewPanel");
+    const el = document.getElementById("review");
+    if (!state.review.length) { panel.style.display = "none"; return; }
+    panel.style.display = "";
+    el.innerHTML = "<div style='opacity:.7;margin-bottom:4px'>错题（最近 " + state.review.length + " 题）</div>";
+    state.review.forEach((r, idx) => {
+      const div = document.createElement("div");
+      div.className = "item";
+      const handTxt = r.hand.map(t => tileName(t)).join(" ");
+      div.innerHTML = "手牌 " + handTxt + "：你打 " + tileName(r.chosen) + "，最佳 " + tileName(r.best);
+      const sp = document.createElement("span");
+      sp.className = "replay";
+      sp.textContent = "重做";
+      sp.addEventListener("click", () => {
+        state.hand = r.hand.slice().sort((a, b) => a - b);
+        state.eval = evaluate(state.hand);
+        state.played = -1;
+        state.reviewing = true;
+        document.getElementById("resultPanel").style.display = "none";
+        document.getElementById("feedback").className = "feedback";
+        document.getElementById("feedback").textContent = "复习这题（不计分）：选一张要打的牌。";
+        renderHand();
+      });
+      div.appendChild(sp);
+      el.appendChild(div);
+    });
+  }
+
+  function saveStats() {
+    try {
+      localStorage.setItem("mj-heqie-v1", JSON.stringify({
+        total: state.total, correct: state.correct, lossSum: state.lossSum,
+        lossCount: state.lossCount, behind: state.behind,
+        active: Array.from(active),
+        review: state.review
+      }));
+    } catch (e) { /* ignore */ }
+  }
+  function loadStats() {
+    try {
+      const raw = localStorage.getItem("mj-heqie-v1");
+      if (!raw) return;
+      const o = JSON.parse(raw);
+      state.total = o.total || 0; state.correct = o.correct || 0;
+      state.lossSum = o.lossSum || 0; state.lossCount = o.lossCount || 0; state.behind = o.behind || 0;
+      const savedActive = Array.isArray(o.active) ? o.active : null;
+      if (savedActive && savedActive.length === active.size && savedActive.every(function (k) { return active.has(k); })) {
+        state.review = Array.isArray(o.review) ? o.review : [];
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  const pickerCounts = [];
+  function pickerTotal() {
+    let n = 0;
+    for (let t = 0; t < kinds.length; t++) n += pickerCounts[t] || 0;
+    return n;
+  }
+  function renderPicker() {
+    const grid = document.getElementById("pickerGrid");
+    grid.innerHTML = "";
+    for (let t = 0; t < kinds.length; t++) {
+      const k = kinds[t];
+      const d = document.createElement("div");
+      d.className = "pick " + k.suit + (pickerCounts[t] > 0 ? " on" : "");
+      let inner = "";
+      if (k.suit === "z") inner = '<div class="n" style="font-size:16px">' + k.label + '</div>';
+      else inner = '<div class="n">' + k.num + '</div><div class="s">' + k.suitLabel + '</div>';
+      d.innerHTML = inner + '<div class="c">' + (pickerCounts[t] || 0) + '</div>';
+      d.addEventListener("click", function () {
+        pickerCounts[t] = ((pickerCounts[t] || 0) + 1) % 5;
+        renderPicker();
+        updatePickerHint();
+      });
+      grid.appendChild(d);
+    }
+  }
+  function updatePickerHint() {
+    const n = pickerTotal();
+    const el = document.getElementById("pickerCount");
+    el.textContent = n + " / 14" + (n === 14 ? "　可以开始了" : n > 14 ? "　多了，点牌循环回减" : "");
+    el.style.color = n === 14 ? "#7fd18a" : n > 14 ? "#e08a8a" : "";
+  }
+  function openPicker() {
+    pickerCounts.length = 0;
+    for (let t = 0; t < kinds.length; t++) pickerCounts[t] = 0;
+    renderPicker();
+    updatePickerHint();
+    document.getElementById("pickerPanel").style.display = "";
+  }
+  document.getElementById("manualBtn").addEventListener("click", openPicker);
+  document.getElementById("pickerClose").addEventListener("click", function () {
+    document.getElementById("pickerPanel").style.display = "none";
+  });
+  document.getElementById("pickerClear").addEventListener("click", function () {
+    for (let t = 0; t < kinds.length; t++) pickerCounts[t] = 0;
+    renderPicker();
+    updatePickerHint();
+  });
+  document.getElementById("pickerStart").addEventListener("click", function () {
+    const hand = [];
+    for (let t = 0; t < kinds.length; t++) for (let i = 0; i < (pickerCounts[t] || 0); i++) hand.push(t);
+    const fb = document.getElementById("feedback");
+    if (hand.length !== 14) {
+      fb.className = "feedback bad";
+      fb.textContent = "需要正好 14 张，现在选了 " + hand.length + " 张。";
+      return;
+    }
+    state.hand = hand.slice().sort(function (a, b) { return a - b; });
+    state.eval = evaluate(state.hand);
+    state.played = -1;
+    state.reviewing = false;
+    document.getElementById("resultPanel").style.display = "none";
+    document.getElementById("pickerPanel").style.display = "none";
+    fb.className = "feedback";
+    fb.textContent = "手动题目：选一张要打的牌。";
+    renderHand();
+  });
+
+  document.getElementById("newBtn").addEventListener("click", newQuestion);
+  document.getElementById("resetBtn").addEventListener("click", function () {
+    state.total = 0; state.correct = 0; state.lossSum = 0; state.lossCount = 0; state.behind = 0; state.review = [];
+    saveStats(); updateStats();
+    document.getElementById("reviewPanel").style.display = "none";
+  });
+  document.querySelectorAll("input[data-suit]").forEach(function (cb) {
+    cb.addEventListener("change", function () {
+      if (cb.checked) active.add(cb.dataset.suit); else active.delete(cb.dataset.suit);
+      if (!active.size) { cb.checked = true; active.add(cb.dataset.suit); return; }
+      rebuildKinds();
+      state.review = [];
+      newQuestion();
+    });
+  });
+
+  loadStats();
+  updateStats();
+  rebuildKinds();
+  newQuestion();
+  renderReview();
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
