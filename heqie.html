@@ -55,12 +55,21 @@
   .review { font-size:12px; opacity:.85; line-height:1.9; }
   .review .item { padding:4px 0; border-bottom:1px dashed #3a2f24; }
   .review .replay { color:#ffd54f; cursor:pointer; margin-left:6px; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.72); display:flex; align-items:center; justify-content:center; padding:20px; z-index:999; }
+  .modal[hidden] { display:none; }
+  .modal-card { max-width:520px; background:#2e2620; border:1px solid #4a3c2c; border-radius:14px; padding:20px 22px; color:#f0e6d2; line-height:1.9; font-size:14px; }
+  .modal-card h2 { margin:0 0 10px; font-size:18px; }
+  .modal-card p { margin:8px 0; opacity:.92; }
+  h1 { display:flex; align-items:center; gap:12px; }
+  .help-q { width:26px; height:26px; border-radius:50%; border:1px solid #a9713c; background:#3a2f24; color:#ffd54f; font-size:14px; font-weight:700; cursor:pointer; line-height:1; display:flex; align-items:center; justify-content:center; padding:0; }
+  .help-q:hover { background:#4a3a2a; }
+  .modal-actions { display:flex; justify-content:space-between; align-items:center; gap:24px; margin-top:18px; }
+  .modal-actions .primary { margin-left:auto; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>麻将何切训练器</h1>
-  <div class="sub">默认规则：只有筒、条两门；不能吃，只能碰杠。点一张牌表示“打出它”，软件按缺牌数和有效进张判分。</div>
+  <h1>麻将何切训练器 <button id="helpBtn" class="help-q" title="使用说明">?</button></h1>
 
   <div class="panel">
     <div class="row">
@@ -69,7 +78,7 @@
       <label><input type="checkbox" data-suit="p" checked>筒</label>
       <label><input type="checkbox" data-suit="s" checked>条</label>
       <label><input type="checkbox" data-suit="z">字</label>
-      <button id="newBtn" class="primary">新题</button>
+      <button id="newBtn" class="primary">练习</button>
       <button id="manualBtn">选牌</button>
       <button id="resetBtn">重置统计</button>
     </div>
@@ -78,7 +87,7 @@
 
   <div class="panel" id="pickerPanel" style="display:none">
     <div class="row" style="justify-content:space-between">
-      <strong style="font-size:14px">点牌加入手牌（再点一次 0→1→2→3→4 循环）</strong>
+      <strong style="font-size:14px">点牌加入手牌，点一次加一张，到2/5/8/11/14张后点开始分析。</strong>
       <span id="pickerCount" style="font-size:13px;opacity:.8"></span>
     </div>
     <div class="picker" id="pickerGrid"></div>
@@ -107,6 +116,21 @@
     <div class="review" id="review"></div>
   </div>
 </div>
+
+<div class="modal" id="helpModal" hidden>
+  <div class="modal-card">
+    <h2>使用说明</h2>
+    <p><b>1. 练习</b>：点「练习」随机发 14 张牌，点一张表示打出它，系统按缺牌数、有效进张和好形率评分。</p>
+    <p><b>2. 选牌分析</b>：点「选牌」自己挑牌再分析，支持吃碰杠后的 11 / 8 / 5 / 2 张（对应 1～4 副露）。</p>
+    <p><b>3. 重置统计</b>：清空题数、最佳命中、正确率和错题记录，重新开始。</p>
+    <p><b>4. 好形率</b>：好形率越高，两头搭子越多，听牌牌形越好。</p>
+    <p><b>5. 有效进张</b>：只按你手里的牌计算（每种 4 张减去手里已有），<b>不扣除牌桌上已经打出的牌</b>，也不考虑碰杠。</p>
+    <div class="modal-actions">
+      <button id="helpNever">不再提示</button>
+      <button id="helpClose" class="primary">知道了</button>
+    </div>
+  </div>
+</div>
 <script>
 (function () {
   "use strict";
@@ -119,7 +143,7 @@
   const active = new Set(["p", "s"]);
   let kinds = [];
   let shantenFn = null;
-  const state = { hand: [], eval: null, played: -1, reviewing: false, total: 0, correct: 0, lossSum: 0, lossCount: 0, behind: 0, review: [] };
+  const state = { hand: [], eval: null, exposed: 0, played: -1, reviewing: false, total: 0, correct: 0, lossSum: 0, lossCount: 0, behind: 0, review: [] };
 
   function buildShanten(ks) {
     const n = ks.length;
@@ -149,13 +173,15 @@
       if (!pair && c[i] >= 2) { c[i] -= 2; best = Math.min(best, dfs(c, i, m, p, 1)); c[i] += 2; }
       return best;
     }
-    return function (counts) {
-      const std = dfs(counts.slice(), 0, 0, 0, 0);
+    return function (counts, exposed) {
+      exposed = exposed || 0;
+      const std = dfs(counts.slice(), 0, exposed, 0, 0);
       let pairs = 0, distinct = 0;
       for (let i = 0; i < counts.length; i++) {
         if (counts[i] > 0) distinct++;
         pairs += Math.floor(counts[i] / 2);
       }
+      if (exposed > 0) return std;
       const chiitoi = 6 - pairs + Math.max(0, 7 - distinct);
       return Math.min(std, chiitoi);
     };
@@ -188,13 +214,13 @@
     return "other";
   }
 
-  function ukeireOf(counts) {
-    const now = shantenFn(counts);
+  function ukeireOf(counts, exposed) {
+    const now = shantenFn(counts, exposed);
     let total = 0, kindCnt = 0, tiles = [], good = 0;
     for (let t = 0; t < kinds.length; t++) {
       if (counts[t] >= 4) continue;
       counts[t]++;
-      const s = shantenFn(counts);
+      const s = shantenFn(counts, exposed);
       counts[t]--;
       if (s < now) {
         const left = 4 - counts[t];
@@ -205,19 +231,98 @@
     return { total: total, kindCnt: kindCnt, tiles: tiles, good: good };
   }
 
-  function evaluate(hand) {
+  function ryanmenPairs(counts) {
+    const pairs = [];
+    const suits = ["m", "p", "s"];
+    for (const suit of suits) {
+      const start = kinds.findIndex(function (k) { return k.suit === suit; });
+      if (start < 0) continue;
+      for (let i = 1; i <= 6; i++) {
+        if (counts[start + i] > 0 && counts[start + i + 1] > 0) {
+          pairs.push({ suit: suit, a: i + 1, b: i + 2 });
+          counts[start + i]--;
+          counts[start + i + 1]--;
+        }
+      }
+    }
+    return pairs;
+  }
+
+  function pairDesc(p) {
+    const label = p.suit === "m" ? "万" : p.suit === "p" ? "筒" : "条";
+    return p.a + label + p.b + label;
+  }
+
+  function isWinFn(counts, exposed) {
+    const need = 4 - (exposed || 0);
+    if (need < 0 || need > 4) return false;
+    const startOf = {};
+    kinds.forEach(function (k, i) { if (!(k.suit in startOf)) startOf[k.suit] = i; });
+    function rel(i, d) {
+      if (kinds[i].suit === "z") return -1;
+      const r = i - startOf[kinds[i].suit] + d;
+      return r > 8 ? -1 : i + d;
+    }
+    function maxMelds(c) {
+      let i = -1;
+      for (let k = 0; k < c.length; k++) { if (c[k] > 0) { i = k; break; } }
+      if (i < 0) return 0;
+      let best = 0;
+      if (c[i] >= 3) { c[i] -= 3; best = Math.max(best, 1 + maxMelds(c)); c[i] += 3; }
+      const a = rel(i, 1), b = rel(i, 2);
+      if (a >= 0 && b >= 0 && c[a] > 0 && c[b] > 0) {
+        c[i]--; c[a]--; c[b]--;
+        best = Math.max(best, 1 + maxMelds(c));
+        c[i]++; c[a]++; c[b]++;
+      }
+      return best;
+    }
+    for (let i = 0; i < counts.length; i++) {
+      if (counts[i] < 2) continue;
+      const c = counts.slice();
+      c[i] -= 2;
+      if (maxMelds(c) === need && c.every(function (x) { return x === 0; })) return true;
+    }
+    return false;
+  }
+
+  function winTilesOf(counts, exposed) {
+    const list = [];
+    for (let t = 0; t < kinds.length; t++) {
+      if (counts[t] >= 4) continue;
+      counts[t]++;
+      const win = isWinFn(counts, exposed);
+      counts[t]--;
+      if (win) list.push({ tile: t, left: 4 - counts[t] });
+    }
+    return list;
+  }
+
+  function evaluate(hand, exposed) {
+    exposed = exposed || 0;
     const counts = new Array(kinds.length).fill(0);
     for (const t of hand) counts[t]++;
     const out = [];
     for (let t = 0; t < kinds.length; t++) {
       if (!counts[t]) continue;
       counts[t]--;
-      const s = shantenFn(counts);
-      const u = ukeireOf(counts);
+      const s = isWinFn(counts, exposed) ? -1 : shantenFn(counts, exposed);
+      let winTiles = null;
+      let winTotal = 0;
+      if (s === 0) {
+        winTiles = winTilesOf(counts, exposed);
+        winTotal = winTiles.reduce(function (a, w) { return a + w.left; }, 0);
+      }
+      const u = ukeireOf(counts, exposed);
+      const pairs = ryanmenPairs(counts.slice());
       counts[t]++;
-      out.push({ tile: t, shanten: s, ukeire: u.total, kindCnt: u.kindCnt, tiles: u.tiles, good: u.good });
+      out.push({ tile: t, shanten: s, ukeire: u.total, kindCnt: u.kindCnt, tiles: u.tiles, good: u.good, winTiles: winTiles, winTotal: winTotal, pairs: pairs, pairCount: pairs.length });
     }
-    out.sort((a, b) => a.shanten - b.shanten || b.ukeire - a.ukeire || b.good - a.good || b.kindCnt - a.kindCnt);
+    out.sort(function (a, b) {
+      if (a.shanten !== b.shanten) return a.shanten - b.shanten;
+      if (a.shanten === 0) return (b.winTotal || 0) - (a.winTotal || 0);
+      return b.ukeire - a.ukeire || b.good - a.good || b.kindCnt - a.kindCnt;
+    });
     return out;
   }
 
@@ -261,7 +366,8 @@
     const fb = document.getElementById("feedback");
     if (!hand) { fb.className = "feedback bad"; fb.textContent = "当前牌种凑不出合适的题，多勾一个花色试试。"; document.getElementById("hand").innerHTML = ""; return; }
     state.hand = hand.slice().sort((a, b) => a - b);
-    state.eval = evaluate(state.hand);
+    state.exposed = 0;
+    state.eval = evaluate(state.hand, 0);
     fb.className = "feedback";
     fb.textContent = "选一张要打的牌。";
     renderHand();
@@ -303,7 +409,7 @@
       if (shDiff > 0) { state.behind++; loss = 99; }
       else { loss = Math.max(0, uDiff); state.lossSum += loss; state.lossCount++; }
       if (!isBest && !isNear) {
-        state.review.unshift({ hand: state.hand.slice(), chosen: t, best: best.tile, loss: loss });
+        state.review.unshift({ hand: state.hand.slice(), chosen: t, best: best.tile, loss: loss, exposed: state.exposed });
         if (state.review.length > 12) state.review.pop();
       }
       saveStats();
@@ -322,19 +428,26 @@
   function showResult(chosen, best, isBest, isNear, loss) {
     const fb = document.getElementById("feedback");
     const prefix = state.reviewing ? "（复习，不计分）" : "";
-    const yourSh = shantenText(chosen.shanten);
-    const bestSh = shantenText(best.shanten);
+    function infoOf(e) {
+      if (e.shanten === 0 && e.winTiles && e.winTiles.length) {
+        return "听 " + e.winTiles.map(function (w) { return tileName(w.tile); }).join(" / ");
+      }
+      return shantenText(e.shanten) + "，进张 " + e.ukeire + " 张 / 好形率 " + Math.round(e.good * 100 / (e.ukeire || 1)) + "%";
+    }
+    const yourInfo = infoOf(chosen);
+    const bestInfo = infoOf(best);
+    const unit = chosen.shanten === 0 ? "张和牌张" : "张进张";
     if (isBest) {
       fb.className = "feedback ok";
-      fb.textContent = "✓ 最佳选择：打 " + tileName(chosen.tile) + "，" + yourSh + "，有效进张 " + chosen.ukeire + " 张（两头搭 " + chosen.good + " 张 / " + chosen.kindCnt + " 种）。" + prefix;
+      fb.textContent = "✓ 最佳选择：打 " + tileName(chosen.tile) + "，" + yourInfo + "。" + prefix;
     } else if (isNear) {
       fb.className = "feedback ok";
-      fb.textContent = "✓ 接近最佳：打 " + tileName(chosen.tile) + "（" + yourSh + "，进张 " + chosen.ukeire + " 张 / 两头搭 " + chosen.good + " 张），最佳 " + tileName(best.tile) + " 也只是多 " + (best.ukeire - chosen.ukeire) + " 张进张，可以算对。" + prefix;
+      fb.textContent = "✓ 接近最佳：打 " + tileName(chosen.tile) + "（" + yourInfo + "），最佳 " + tileName(best.tile) + " 也只是多 " + Math.max(0, best.ukeire - chosen.ukeire) + " " + unit + "，可以算对。" + prefix;
     } else {
-      let msg = "✗ 你打 " + tileName(chosen.tile) + "（" + yourSh + "，进张 " + chosen.ukeire + " 张 / 两头搭 " + chosen.good + " 张）";
+      let msg = "✗ 你打 " + tileName(chosen.tile) + "（" + yourInfo + "）";
       if (chosen.shanten > best.shanten) msg += "，缺牌比最佳多 " + (chosen.shanten - best.shanten) + " 张";
-      else msg += "，比最佳少 " + (best.ukeire - chosen.ukeire) + " 张进张";
-      msg += "。最佳是打 " + tileName(best.tile) + "（" + bestSh + "，进张 " + best.ukeire + " 张 / 两头搭 " + best.good + " 张）。";
+      else { const d = best.ukeire - chosen.ukeire; if (d > 0) msg += "，比最佳少 " + d + " " + unit; }
+      msg += "。最佳是打 " + tileName(best.tile) + "（" + bestInfo + "）。";
       fb.className = "feedback bad";
       fb.textContent = msg + prefix;
     }
@@ -345,7 +458,15 @@
       if (e === state.eval[0]) tr.className = "best";
       else if (e.tile === chosen.tile) tr.className = "chosen";
       const sh = e.shanten === -1 ? "和牌" : e.shanten;
-      tr.innerHTML = "<td>" + tileName(e.tile) + "</td><td>" + sh + "</td><td class='uke'>" + e.ukeire + "<div class='sub'>两头搭 " + e.good + "</div></td><td class='kinds'>" + kindListText(e) + "</td>";
+      let ukeCell, kindsCell;
+      if (e.shanten === 0 && e.winTiles && e.winTiles.length) {
+        ukeCell = "听牌";
+        kindsCell = e.winTiles.map(function (w) { return tileName(w.tile); }).join(" ");
+      } else {
+        ukeCell = e.ukeire + "<div class='sub'>好形率 " + Math.round(e.good * 100 / (e.ukeire || 1)) + "%</div>";
+        kindsCell = kindListText(e);
+      }
+      tr.innerHTML = "<td>" + tileName(e.tile) + "</td><td>" + sh + "</td><td class='uke'>" + ukeCell + "</td><td class='kinds'>" + kindsCell + "</td>";
       body.appendChild(tr);
     }
     document.getElementById("resultPanel").style.display = "";
@@ -384,7 +505,8 @@
       sp.textContent = "重做";
       sp.addEventListener("click", () => {
         state.hand = r.hand.slice().sort((a, b) => a - b);
-        state.eval = evaluate(state.hand);
+        state.exposed = r.exposed || 0;
+        state.eval = evaluate(state.hand, state.exposed);
         state.played = -1;
         state.reviewing = true;
         document.getElementById("resultPanel").style.display = "none";
@@ -439,7 +561,7 @@
       else inner = '<div class="n">' + k.num + '</div><div class="s">' + k.suitLabel + '</div>';
       d.innerHTML = inner + '<div class="c">' + (pickerCounts[t] || 0) + '</div>';
       d.addEventListener("click", function () {
-        pickerCounts[t] = ((pickerCounts[t] || 0) + 1) % 5;
+        pickerCounts[t] = Math.min(4, (pickerCounts[t] || 0) + 1);
         renderPicker();
         updatePickerHint();
       });
@@ -449,8 +571,9 @@
   function updatePickerHint() {
     const n = pickerTotal();
     const el = document.getElementById("pickerCount");
-    el.textContent = n + " / 14" + (n === 14 ? "　可以开始了" : n > 14 ? "　多了，点牌循环回减" : "");
-    el.style.color = n === 14 ? "#7fd18a" : n > 14 ? "#e08a8a" : "";
+    const map = { 14: "门清", 11: "1 副露", 8: "2 副露", 5: "3 副露", 2: "4 副露" };
+    el.textContent = n + " 张" + (map[n] ? "（" + map[n] + "）" : "") + (map[n] ? "　可以开始了" : "");
+    el.style.color = map[n] ? "#7fd18a" : "";
   }
   function openPicker() {
     pickerCounts.length = 0;
@@ -472,19 +595,23 @@
     const hand = [];
     for (let t = 0; t < kinds.length; t++) for (let i = 0; i < (pickerCounts[t] || 0); i++) hand.push(t);
     const fb = document.getElementById("feedback");
-    if (hand.length !== 14) {
+    const allowed = { 14: 0, 11: 1, 8: 2, 5: 3, 2: 4 };
+    const len = hand.length;
+    if (!(len in allowed)) {
       fb.className = "feedback bad";
-      fb.textContent = "需要正好 14 张，现在选了 " + hand.length + " 张。";
+      fb.textContent = "请选 14 / 11 / 8 / 5 / 2 张（对应 0～4 副露），现在选了 " + len + " 张。";
       return;
     }
+    const exposed = allowed[len];
     state.hand = hand.slice().sort(function (a, b) { return a - b; });
-    state.eval = evaluate(state.hand);
+    state.exposed = exposed;
+    state.eval = evaluate(state.hand, exposed);
     state.played = -1;
     state.reviewing = false;
     document.getElementById("resultPanel").style.display = "none";
     document.getElementById("pickerPanel").style.display = "none";
     fb.className = "feedback";
-    fb.textContent = "手动题目：选一张要打的牌。";
+    fb.textContent = "手动题目" + (exposed ? "（" + exposed + " 副露）" : "") + "：选一张要打的牌。";
     renderHand();
   });
 
@@ -500,15 +627,51 @@
       if (!active.size) { cb.checked = true; active.add(cb.dataset.suit); return; }
       rebuildKinds();
       state.review = [];
-      newQuestion();
+      if (state.hand && state.hand.length) newQuestion();
     });
   });
 
   loadStats();
   updateStats();
   rebuildKinds();
-  newQuestion();
   renderReview();
+  document.getElementById("hand").innerHTML = "";
+  document.getElementById("feedback").className = "feedback";
+  document.getElementById("feedback").textContent = "点「练习」开始，或点「选牌」自己挑牌。";
+  function helpDismissed() {
+    try { return localStorage.getItem("heqie-help-off") === "1"; } catch (e) { return false; }
+  }
+  function dismissHelp() {
+    try { localStorage.setItem("heqie-help-off", "1"); } catch (e) { }
+  }
+  function updateHelpNever() {
+    const btn = document.getElementById("helpNever");
+    if (!btn) return;
+    btn.textContent = helpDismissed() ? "恢复自动提示" : "不再提示";
+  }
+  updateHelpNever();
+  if (!helpDismissed()) document.getElementById("helpModal").hidden = false;
+  document.getElementById("helpBtn").addEventListener("click", function () {
+    try { localStorage.removeItem("heqie-help-off"); } catch (e) { }
+    updateHelpNever();
+    document.getElementById("helpModal").hidden = false;
+  });
+  document.getElementById("helpClose").addEventListener("click", function () {
+    document.getElementById("helpModal").hidden = true;
+  });
+  document.getElementById("helpNever").addEventListener("click", function () {
+    if (helpDismissed()) {
+      try { localStorage.removeItem("heqie-help-off"); } catch (e) { }
+      updateHelpNever();
+      return;
+    }
+    dismissHelp();
+    updateHelpNever();
+    document.getElementById("helpModal").hidden = true;
+  });
+  document.getElementById("helpModal").addEventListener("click", function (e) {
+    if (e.target === this) this.hidden = true;
+  });
 })();
 </script>
 <script>

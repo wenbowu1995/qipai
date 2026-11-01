@@ -1,4 +1,4 @@
-const CACHE = "qipai-v3";
+const CACHE = "qipai-v14";
 const ASSETS = [
   "./index.html",
   "./xiangqi.html",

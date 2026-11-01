@@ -10,14 +10,17 @@
 <style>
   :root { --wood:#e9c68f; --line:#7a5230; --red:#b03028; --black:#23303f; }
   * { box-sizing:border-box; }
+  html { -webkit-text-size-adjust:100%; }
   body { margin:0; font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:#2b2118;
-         color:#f0e6d2; display:flex; gap:24px; justify-content:center; padding:24px; flex-wrap:wrap; }
+         color:#f0e6d2; display:flex; gap:24px; justify-content:center; padding:24px; flex-wrap:wrap;
+         min-height:100vh; min-height:100dvh; overflow-x:hidden; overflow-y:auto;
+         -webkit-overflow-scrolling:touch; overscroll-behavior-y:auto; }
   .board { position:relative; width:544px; height:602px; background:var(--wood);
            border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,.5);
            cursor:pointer; user-select:none; }
   .boardWrap { width:544px; height:602px; }
   .board { transform-origin:top left; }
-  @media (max-width:900px) {
+  @media (max-width:960px) {
     body { display:block; padding:12px; }
     .boardWrap { width:calc(544px * var(--bs,1)); height:calc(602px * var(--bs,1)); }
     .board { transform:scale(var(--bs,1)); }
@@ -74,6 +77,15 @@
   .trail { position:absolute; height:6px; transform-origin:0 50%; border-radius:3px; pointer-events:none;
            background:linear-gradient(90deg, rgba(255,213,79,.10), rgba(255,213,79,.55));
            box-shadow:0 0 8px rgba(255,213,79,.35); }
+  @media (max-height:560px) and (max-width:1000px) {
+    body { padding:8px; gap:10px; }
+    h1 { font-size:16px; margin-bottom:6px; }
+    .panel { padding:10px; }
+    .status { min-height:36px; padding:8px 10px; margin-bottom:8px; }
+    .evalbar { margin-bottom:8px; }
+    .row { margin-bottom:8px; }
+    .log { height:150px; }
+  }
 </style>
 </head>
 <body>
