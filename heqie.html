@@ -10,7 +10,8 @@
 <style>
   :root { --bg:#1f1a16; --panel:#2e2620; --card:#f6f1e6; --ink:#2b2118; --red:#b03028; --blue:#2b3a8f; --green:#1e7a46; }
   * { box-sizing:border-box; }
-  body { margin:0; padding:16px; background:var(--bg); color:#f0e6d2; font-family:"Microsoft YaHei","PingFang SC",sans-serif; }
+  body { margin:0; padding:16px; background:var(--bg); color:#f0e6d2; font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+         min-height:100vh; min-height:100dvh; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
   .wrap { max-width:780px; margin:0 auto; }
   h1 { font-size:20px; margin:0 0 4px; }
   .sub { font-size:12px; opacity:.7; margin-bottom:12px; line-height:1.6; }
@@ -55,9 +56,9 @@
   .review { font-size:12px; opacity:.85; line-height:1.9; }
   .review .item { padding:4px 0; border-bottom:1px dashed #3a2f24; }
   .review .replay { color:#ffd54f; cursor:pointer; margin-left:6px; }
-  .modal { position:fixed; inset:0; background:rgba(0,0,0,.72); display:flex; align-items:center; justify-content:center; padding:20px; z-index:999; }
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,.72); display:flex; align-items:flex-start; justify-content:center; padding:20px; z-index:999; overflow-y:auto; -webkit-overflow-scrolling:touch; }
   .modal[hidden] { display:none; }
-  .modal-card { max-width:520px; background:#2e2620; border:1px solid #4a3c2c; border-radius:14px; padding:20px 22px; color:#f0e6d2; line-height:1.9; font-size:14px; }
+  .modal-card { max-width:520px; width:100%; background:#2e2620; border:1px solid #4a3c2c; border-radius:14px; padding:20px 22px; color:#f0e6d2; line-height:1.9; font-size:14px; max-height:calc(100dvh - 40px); overflow-y:auto; }
   .modal-card h2 { margin:0 0 10px; font-size:18px; }
   .modal-card p { margin:8px 0; opacity:.92; }
   h1 { display:flex; align-items:center; gap:12px; }
@@ -580,7 +581,9 @@
     for (let t = 0; t < kinds.length; t++) pickerCounts[t] = 0;
     renderPicker();
     updatePickerHint();
-    document.getElementById("pickerPanel").style.display = "";
+    const panel = document.getElementById("pickerPanel");
+    panel.style.display = "";
+    if (panel.scrollIntoView) panel.scrollIntoView({ block: "start" });
   }
   document.getElementById("manualBtn").addEventListener("click", openPicker);
   document.getElementById("pickerClose").addEventListener("click", function () {
