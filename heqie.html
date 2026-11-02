@@ -137,7 +137,7 @@
     <p><b>1. 练习</b>：点「练习」随机发 14 张牌，点一张表示打出它，系统按缺牌数、有效进张和好形率评分。</p>
     <p><b>2. 选牌分析</b>：点「选牌」自己挑牌再分析，支持吃碰杠后的 11 / 8 / 5 / 2 张（对应 1～4 副露）。</p>
     <p><b>3. 重置统计</b>：清空题数、最佳命中、正确率和错题记录，重新开始。</p>
-    <p><b>4. 好形率</b>：好形率越高，两头搭子越多，听牌牌形越好。</p>
+    <p><b>4. 好形率</b>：内部排序指标，界面默认不显示。</p>
     <p><b>5. 有效进张</b>：只按你手里的牌计算（每种 4 张减去手里已有），<b>不扣除牌桌上已经打出的牌</b>，也不考虑碰杠。</p>
     <div class="modal-actions">
       <button id="helpNever">不再提示</button>
@@ -466,7 +466,7 @@
       if (e.shanten === 0 && e.winTiles && e.winTiles.length) {
         return "听 " + e.winTiles.map(function (w) { return tileName(w.tile); }).join(" / ");
       }
-      return shantenText(e.shanten) + "，进张 " + e.ukeire + " 张 / 好形率 " + Math.round(e.good * 100 / (e.ukeire || 1)) + "%";
+      return shantenText(e.shanten) + "，进张 " + e.ukeire + " 张";
     }
     const yourInfo = infoOf(chosen);
     const bestInfo = infoOf(best);
@@ -497,7 +497,7 @@
         ukeCell = "听牌";
         kindsCell = e.winTiles.map(function (w) { return tileName(w.tile); }).join(" ");
       } else {
-        ukeCell = e.ukeire + "<div class='sub'>好形率 " + Math.round(e.good * 100 / (e.ukeire || 1)) + "%</div>";
+        ukeCell = e.ukeire;
         kindsCell = kindListText(e);
       }
       tr.innerHTML = "<td>" + tileName(e.tile) + "</td><td>" + sh + "</td><td class='uke'>" + ukeCell + "</td><td class='kinds'>" + kindsCell + "</td>";
