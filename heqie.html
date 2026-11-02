@@ -36,6 +36,7 @@
   .tile.disabled { cursor:default; }
   .tile.disabled:hover { transform:none; }
   .feedback { font-size:15px; min-height:24px; margin-top:10px; line-height:1.6; }
+  .feedback .line { margin:2px 0; }
   .feedback.ok { color:#7fd18a; } .feedback.bad { color:#e08a8a; }
   table { width:100%; border-collapse:collapse; font-size:13px; }
   th,td { padding:5px 6px; text-align:left; border-bottom:1px solid #443a2e; }
@@ -442,20 +443,20 @@
     const yourInfo = infoOf(chosen);
     const bestInfo = infoOf(best);
     const unit = chosen.shanten === 0 ? "张和牌张" : "张进张";
-    if (isBest) {
-      fb.className = "feedback ok";
-      fb.textContent = "✓ 最佳选择：打 " + tileName(chosen.tile) + "，" + yourInfo + "。" + prefix;
-    } else if (isNear) {
-      fb.className = "feedback ok";
-      fb.textContent = "✓ 接近最佳：打 " + tileName(chosen.tile) + "（" + yourInfo + "），最佳 " + tileName(best.tile) + " 也只是多 " + Math.max(0, best.ukeire - chosen.ukeire) + " " + unit + "，可以算对。" + prefix;
-    } else {
-      let msg = "✗ 你打 " + tileName(chosen.tile) + "（" + yourInfo + "）";
-      if (chosen.shanten > best.shanten) msg += "，缺牌比最佳多 " + (chosen.shanten - best.shanten) + " 张";
-      else { const d = best.ukeire - chosen.ukeire; if (d > 0) msg += "，比最佳少 " + d + " " + unit; }
-      msg += "。最佳是打 " + tileName(best.tile) + "（" + bestInfo + "）。";
-      fb.className = "feedback bad";
-      fb.textContent = msg + prefix;
+    let verdict;
+    if (isBest) verdict = "✓ 最佳选择";
+    else if (isNear) verdict = "✓ 接近最佳，可以算对";
+    else {
+      if (chosen.shanten > best.shanten) verdict = "✗ 选错了，缺牌比推荐多 " + (chosen.shanten - best.shanten) + " 张";
+      else verdict = "✗ 选错了，比推荐少 " + Math.max(0, best.ukeire - chosen.ukeire) + " " + unit;
     }
+    const handTxt = state.hand.map(tileName).join(" ");
+    fb.className = "feedback " + (isBest || isNear ? "ok" : "bad");
+    fb.innerHTML =
+      '<div class="line"><b>牌型</b>：' + handTxt + '</div>' +
+      '<div class="line"><b>你打</b>：' + tileName(chosen.tile) + '（' + yourInfo + '）</div>' +
+      '<div class="line"><b>推荐</b>：' + tileName(best.tile) + '（' + bestInfo + '）</div>' +
+      '<div class="line">' + verdict + prefix + '</div>';
     const body = document.getElementById("candBody");
     body.innerHTML = "";
     for (const e of state.eval) {
@@ -583,6 +584,10 @@
   function openPicker() {
     pickerCounts.length = 0;
     for (let t = 0; t < kinds.length; t++) pickerCounts[t] = 0;
+    if (state.hand && state.hand.length) {
+      const c = handCounts(state.hand);
+      for (let t = 0; t < kinds.length; t++) pickerCounts[t] = c[t] || 0;
+    }
     renderPicker();
     updatePickerHint();
     const panel = document.getElementById("pickerPanel");
