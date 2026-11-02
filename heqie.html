@@ -316,6 +316,15 @@
     return list;
   }
 
+  function tileValue(t) {
+    const k = kinds[t];
+    if (k.suit === "z") return 0;
+    const n = k.num;
+    if (n === 1 || n === 9) return 0;
+    if (n === 2 || n === 8) return 1;
+    return 2;
+  }
+
   function evaluate(hand, exposed) {
     exposed = exposed || 0;
     const counts = new Array(kinds.length).fill(0);
@@ -338,8 +347,15 @@
     }
     out.sort(function (a, b) {
       if (a.shanten !== b.shanten) return a.shanten - b.shanten;
-      if (a.shanten === 0) return (b.winTotal || 0) - (a.winTotal || 0);
-      return b.ukeire - a.ukeire || b.good - a.good || b.kindCnt - a.kindCnt;
+      if (a.shanten === 0) {
+        const d = (b.winTotal || 0) - (a.winTotal || 0);
+        if (d) return d;
+        return tileValue(a.tile) - tileValue(b.tile);
+      }
+      if (b.ukeire !== a.ukeire) return b.ukeire - a.ukeire;
+      if (b.good !== a.good) return b.good - a.good;
+      if (b.kindCnt !== a.kindCnt) return b.kindCnt - a.kindCnt;
+      return tileValue(a.tile) - tileValue(b.tile);
     });
     return out;
   }
