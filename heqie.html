@@ -58,9 +58,7 @@
   .picker-selected { display:flex; flex-wrap:wrap; gap:6px; min-height:58px; padding:6px; border:1px dashed #4a3c2c; border-radius:8px; }
   .picker-selected .empty { font-size:12px; opacity:.5; align-self:center; padding:0 6px; }
   .picker-selected .pick:hover { outline:2px solid #d05c5c; }
-  .picker-steps { display:flex; gap:8px; margin-top:8px; font-size:11px; opacity:.75; }
-  .picker-steps span { padding:2px 6px; border:1px solid #4a3c2c; border-radius:6px; }
-  .picker-steps span.on { border-color:#7fd18a; color:#7fd18a; }
+  .picker-selected .psep { width:2px; align-self:stretch; background:#7fd18a; border-radius:1px; margin:0 3px; opacity:.85; }
   button:disabled { opacity:.45; cursor:not-allowed; }
   tr.chosen td { background:#3a2f24; }
   .review { font-size:12px; opacity:.85; line-height:1.9; }
@@ -105,7 +103,6 @@
     <div class="picker-selected-wrap">
       <div class="ps-label">已选牌 <span id="pickerTotal">0</span> 张 · 点一张删除</div>
       <div class="picker-selected" id="pickerSelected"></div>
-      <div class="picker-steps" id="pickerSteps"></div>
     </div>
     <div class="row" style="margin-top:10px">
       <button id="pickerClear">清空</button>
@@ -617,8 +614,15 @@
       d.textContent = "还没有选牌：点上方牌加入";
       box.appendChild(d);
     } else {
+      let prevSuit = null;
       arr.forEach(function (t) {
         const k = kinds[t];
+        if (prevSuit !== null && k.suit !== prevSuit) {
+          const sep = document.createElement("div");
+          sep.className = "psep";
+          box.appendChild(sep);
+        }
+        prevSuit = k.suit;
         const d = document.createElement("div");
         d.className = "pick " + k.suit;
         let inner = "";
@@ -635,15 +639,6 @@
         box.appendChild(d);
       });
     }
-    const steps = document.getElementById("pickerSteps");
-    const targets = [2, 5, 8, 11, 14];
-    steps.innerHTML = "";
-    targets.forEach(function (n) {
-      const sp = document.createElement("span");
-      sp.textContent = n + " 张";
-      if (arr.length === n) sp.className = "on";
-      steps.appendChild(sp);
-    });
   }
   function openPicker() {
     pickerCounts.length = 0;
