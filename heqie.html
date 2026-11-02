@@ -38,9 +38,14 @@
   .feedback { font-size:15px; min-height:24px; margin-top:10px; line-height:1.6; }
   .feedback .line { margin:2px 0; }
   .feedback.ok { color:#7fd18a; } .feedback.bad { color:#e08a8a; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th,td { padding:5px 6px; text-align:left; border-bottom:1px solid #443a2e; }
-  th { opacity:.7; font-weight:normal; }
+  table { width:100%; border-collapse:collapse; font-size:13px; table-layout:fixed; }
+  th,td { padding:3px 6px; text-align:left; border-bottom:1px solid #443a2e; }
+  th { opacity:.7; font-weight:normal; font-size:11px; padding:2px 6px; }
+  th:nth-child(1), td:nth-child(1) { width:3.4em; }
+  th:nth-child(2), td:nth-child(2) { width:3.2em; }
+  th:nth-child(3), td:nth-child(3) { width:3.8em; }
+  td.uke { white-space:nowrap; }
+  td.kinds { white-space:nowrap; overflow:hidden; }
   tr.best td { color:#8fd39a; }
   td.kinds { font-size:12px; opacity:.85; }
   td.uke .sub { font-size:11px; opacity:.6; margin-top:2px; }
@@ -120,7 +125,7 @@
   <div class="panel" id="resultPanel" style="display:none">
     <div style="overflow-x:auto">
       <table>
-        <thead><tr><th>打这张</th><th>缺几张听牌</th><th>有效进张</th><th>能进的牌</th></tr></thead>
+        <thead><tr><th>打出</th><th>缺听</th><th>可进</th><th>能进的牌</th></tr></thead>
         <tbody id="candBody"></tbody>
       </table>
     </div>
@@ -485,12 +490,20 @@
       '<div class="line"><b>你打</b>：' + tileName(chosen.tile) + '（' + yourInfo + '）</div>' +
       '<div class="line"><b>推荐</b>：' + tileName(best.tile) + '（' + bestInfo + '）</div>' +
       '<div class="line">' + verdict + prefix + '</div>';
+    state.lastChosen = chosen.tile;
+    renderCandidateTable();
+    document.getElementById("resultPanel").style.display = "";
+    renderReview();
+  }
+
+  function renderCandidateTable() {
     const body = document.getElementById("candBody");
+    if (!body || !state.eval) return;
     body.innerHTML = "";
     for (const e of state.eval) {
       const tr = document.createElement("tr");
       if (e === state.eval[0]) tr.className = "best";
-      else if (e.tile === chosen.tile) tr.className = "chosen";
+      else if (e.tile === state.lastChosen) tr.className = "chosen";
       const sh = e.shanten === -1 ? "和牌" : e.shanten;
       let ukeCell, kindsCell;
       if (e.shanten === 0 && e.winTiles && e.winTiles.length) {
@@ -503,16 +516,23 @@
       tr.innerHTML = "<td>" + tileName(e.tile) + "</td><td>" + sh + "</td><td class='uke'>" + ukeCell + "</td><td class='kinds'>" + kindsCell + "</td>";
       body.appendChild(tr);
     }
-    document.getElementById("resultPanel").style.display = "";
-    renderReview();
   }
 
+  let resizeTimer = null;
+  window.addEventListener("resize", function () {
+    if (resizeTimer) clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function () {
+      const panel = document.getElementById("resultPanel");
+      if (panel && panel.style.display !== "none") renderCandidateTable();
+    }, 200);
+  });
+
   function kindListText(e) {
-    const maxKinds = window.innerWidth < 640 ? 4 : 8;
     if (!e.tiles || !e.tiles.length) return "—";
+    const w = window.innerWidth;
+    const maxKinds = w < 640 ? 3 : w < 900 ? 5 : w < 1200 ? 7 : w < 1500 ? 9 : 11;
     if (e.kindCnt > maxKinds) return e.kindCnt + " 种";
-    const txt = e.tiles.map(function (t) { return tileName(t); }).join(" ");
-    return txt.length <= 30 ? txt : e.kindCnt + " 种";
+    return e.tiles.map(function (t) { return tileName(t); }).join(" ");
   }
 
   function updateStats() {
