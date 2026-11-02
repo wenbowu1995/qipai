@@ -59,6 +59,7 @@
   .picker-selected .empty { font-size:12px; opacity:.5; align-self:center; padding:0 6px; }
   .picker-selected .pick:hover { outline:2px solid #d05c5c; }
   .picker-selected .psep { width:2px; align-self:stretch; background:#7fd18a; border-radius:1px; margin:0 3px; opacity:.85; }
+  .picker-selected .slot { width:46px; height:58px; border-radius:8px; border:1px dashed #3a2f24; opacity:.5; }
   button:disabled { opacity:.45; cursor:not-allowed; }
   tr.chosen td { background:#3a2f24; }
   .review { font-size:12px; opacity:.85; line-height:1.9; }
@@ -614,29 +615,38 @@
       d.textContent = "还没有选牌：点上方牌加入";
       box.appendChild(d);
     } else {
-      arr.forEach(function (t, idx) {
-        const k = kinds[t];
-        const d = document.createElement("div");
-        d.className = "pick " + k.suit;
-        let inner = "";
-        if (k.suit === "z") inner = '<div class="n" style="font-size:16px">' + k.label + '</div>';
-        else inner = '<div class="n">' + k.num + '</div><div class="s">' + k.suitLabel + '</div>';
-        d.innerHTML = inner;
-        d.title = "点击删除";
-        d.addEventListener("click", function () {
-          pickerCounts[t] = Math.max(0, (pickerCounts[t] || 0) - 1);
-          renderPicker();
-          renderSelected();
-          updatePickerHint();
-        });
-        box.appendChild(d);
-        const n = idx + 1;
+      const SLOTS = 14;
+      const total = Math.max(SLOTS, arr.length);
+      for (let i = 0; i < total; i++) {
+        if (i < arr.length) {
+          const t = arr[i];
+          const k = kinds[t];
+          const d = document.createElement("div");
+          d.className = "pick " + k.suit;
+          let inner = "";
+          if (k.suit === "z") inner = '<div class="n" style="font-size:16px">' + k.label + '</div>';
+          else inner = '<div class="n">' + k.num + '</div><div class="s">' + k.suitLabel + '</div>';
+          d.innerHTML = inner;
+          d.title = "点击删除";
+          d.addEventListener("click", function () {
+            pickerCounts[t] = Math.max(0, (pickerCounts[t] || 0) - 1);
+            renderPicker();
+            renderSelected();
+            updatePickerHint();
+          });
+          box.appendChild(d);
+        } else {
+          const slot = document.createElement("div");
+          slot.className = "slot";
+          box.appendChild(slot);
+        }
+        const n = i + 1;
         if (n === 2 || n === 5 || n === 8 || n === 11 || n === 14) {
           const sep = document.createElement("div");
           sep.className = "psep";
           box.appendChild(sep);
         }
-      });
+      }
     }
   }
   function openPicker() {
