@@ -579,6 +579,7 @@
       else inner = '<div class="n">' + k.num + '</div><div class="s">' + k.suitLabel + '</div>';
       d.innerHTML = inner + '<div class="c">' + (pickerCounts[t] || 0) + '</div>';
       d.addEventListener("click", function () {
+        if (pickerTotal() >= 14) return;
         pickerCounts[t] = Math.min(4, (pickerCounts[t] || 0) + 1);
         renderPicker();
         renderSelected();
@@ -591,7 +592,7 @@
     const n = pickerTotal();
     const el = document.getElementById("pickerCount");
     const map = { 14: "门清", 11: "1 副露", 8: "2 副露", 5: "3 副露", 2: "4 副露" };
-    el.textContent = n + " 张" + (map[n] ? "（" + map[n] + "）" : "");
+    el.textContent = n + " 张" + (map[n] ? "（" + map[n] + "）" : "") + (n >= 14 ? "　已满" : "");
     el.style.color = map[n] ? "#7fd18a" : "";
     const start = document.getElementById("pickerStart");
     if (start) start.disabled = !map[n];
