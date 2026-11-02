@@ -614,15 +614,8 @@
       d.textContent = "还没有选牌：点上方牌加入";
       box.appendChild(d);
     } else {
-      let prevSuit = null;
-      arr.forEach(function (t) {
+      arr.forEach(function (t, idx) {
         const k = kinds[t];
-        if (prevSuit !== null && k.suit !== prevSuit) {
-          const sep = document.createElement("div");
-          sep.className = "psep";
-          box.appendChild(sep);
-        }
-        prevSuit = k.suit;
         const d = document.createElement("div");
         d.className = "pick " + k.suit;
         let inner = "";
@@ -637,6 +630,12 @@
           updatePickerHint();
         });
         box.appendChild(d);
+        const n = idx + 1;
+        if (n === 2 || n === 5 || n === 8 || n === 11 || n === 14) {
+          const sep = document.createElement("div");
+          sep.className = "psep";
+          box.appendChild(sep);
+        }
       });
     }
   }
