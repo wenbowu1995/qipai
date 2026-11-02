@@ -264,25 +264,29 @@
       const r = i - startOf[kinds[i].suit] + d;
       return r > 8 ? -1 : i + d;
     }
-    function maxMelds(c) {
+    function canMelds(c, left) {
       let i = -1;
       for (let k = 0; k < c.length; k++) { if (c[k] > 0) { i = k; break; } }
-      if (i < 0) return 0;
-      let best = 0;
-      if (c[i] >= 3) { c[i] -= 3; best = Math.max(best, 1 + maxMelds(c)); c[i] += 3; }
+      if (i < 0) return left === 0;
+      if (left === 0) return false;
+      if (c[i] >= 3) {
+        c[i] -= 3;
+        if (canMelds(c, left - 1)) { c[i] += 3; return true; }
+        c[i] += 3;
+      }
       const a = rel(i, 1), b = rel(i, 2);
       if (a >= 0 && b >= 0 && c[a] > 0 && c[b] > 0) {
         c[i]--; c[a]--; c[b]--;
-        best = Math.max(best, 1 + maxMelds(c));
+        if (canMelds(c, left - 1)) { c[i]++; c[a]++; c[b]++; return true; }
         c[i]++; c[a]++; c[b]++;
       }
-      return best;
+      return false;
     }
     for (let i = 0; i < counts.length; i++) {
       if (counts[i] < 2) continue;
       const c = counts.slice();
       c[i] -= 2;
-      if (maxMelds(c) === need && c.every(function (x) { return x === 0; })) return true;
+      if (canMelds(c, need)) return true;
     }
     return false;
   }
