@@ -671,6 +671,7 @@
   document.getElementById("pickerClear").addEventListener("click", function () {
     for (let t = 0; t < kinds.length; t++) pickerCounts[t] = 0;
     renderPicker();
+    renderSelected();
     updatePickerHint();
   });
   document.getElementById("pickerStart").addEventListener("click", function () {
