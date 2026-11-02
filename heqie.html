@@ -53,6 +53,15 @@
   .pick .c { font-size:11px; margin-top:2px; opacity:.7; }
   .pick.m { color:var(--red); } .pick.p { color:var(--blue); } .pick.s { color:var(--green); } .pick.z { color:#333; }
   .pick.on { outline:3px solid #ffd54f; outline-offset:1px; }
+  .picker-selected-wrap { margin-top:12px; }
+  .ps-label { font-size:12px; opacity:.7; margin-bottom:6px; }
+  .picker-selected { display:flex; flex-wrap:wrap; gap:6px; min-height:58px; padding:6px; border:1px dashed #4a3c2c; border-radius:8px; }
+  .picker-selected .empty { font-size:12px; opacity:.5; align-self:center; padding:0 6px; }
+  .picker-selected .pick:hover { outline:2px solid #d05c5c; }
+  .picker-steps { display:flex; gap:8px; margin-top:8px; font-size:11px; opacity:.75; }
+  .picker-steps span { padding:2px 6px; border:1px solid #4a3c2c; border-radius:6px; }
+  .picker-steps span.on { border-color:#7fd18a; color:#7fd18a; }
+  button:disabled { opacity:.45; cursor:not-allowed; }
   tr.chosen td { background:#3a2f24; }
   .review { font-size:12px; opacity:.85; line-height:1.9; }
   .review .item { padding:4px 0; border-bottom:1px dashed #3a2f24; }
@@ -89,13 +98,18 @@
 
   <div class="panel" id="pickerPanel" style="display:none">
     <div class="row" style="justify-content:space-between">
-      <strong style="font-size:14px">点牌加入手牌，点一次加一张，到2/5/8/11/14张后点开始分析。</strong>
+      <strong style="font-size:14px">点上方牌加入，点下方已选牌删除；凑够 2/5/8/11/14 张才能分析。</strong>
       <span id="pickerCount" style="font-size:13px;opacity:.8"></span>
     </div>
     <div class="picker" id="pickerGrid"></div>
+    <div class="picker-selected-wrap">
+      <div class="ps-label">已选牌 <span id="pickerTotal">0</span> 张 · 点一张删除</div>
+      <div class="picker-selected" id="pickerSelected"></div>
+      <div class="picker-steps" id="pickerSteps"></div>
+    </div>
     <div class="row" style="margin-top:10px">
       <button id="pickerClear">清空</button>
-      <button id="pickerStart" class="primary">开始分析</button>
+      <button id="pickerStart" class="primary" disabled>开始分析</button>
       <button id="pickerClose">关闭</button>
     </div>
   </div>
@@ -569,6 +583,7 @@
       d.addEventListener("click", function () {
         pickerCounts[t] = Math.min(4, (pickerCounts[t] || 0) + 1);
         renderPicker();
+        renderSelected();
         updatePickerHint();
       });
       grid.appendChild(d);
@@ -578,8 +593,57 @@
     const n = pickerTotal();
     const el = document.getElementById("pickerCount");
     const map = { 14: "门清", 11: "1 副露", 8: "2 副露", 5: "3 副露", 2: "4 副露" };
-    el.textContent = n + " 张" + (map[n] ? "（" + map[n] + "）" : "") + (map[n] ? "　可以开始了" : "");
+    el.textContent = n + " 张" + (map[n] ? "（" + map[n] + "）" : "");
     el.style.color = map[n] ? "#7fd18a" : "";
+    const start = document.getElementById("pickerStart");
+    if (start) start.disabled = !map[n];
+  }
+
+  function pickerTiles() {
+    const arr = [];
+    for (let t = 0; t < kinds.length; t++) for (let i = 0; i < (pickerCounts[t] || 0); i++) arr.push(t);
+    return arr;
+  }
+
+  function renderSelected() {
+    const box = document.getElementById("pickerSelected");
+    const arr = pickerTiles();
+    const totalEl = document.getElementById("pickerTotal");
+    if (totalEl) totalEl.textContent = arr.length;
+    box.innerHTML = "";
+    if (!arr.length) {
+      const d = document.createElement("div");
+      d.className = "empty";
+      d.textContent = "还没有选牌：点上方牌加入";
+      box.appendChild(d);
+    } else {
+      arr.forEach(function (t) {
+        const k = kinds[t];
+        const d = document.createElement("div");
+        d.className = "pick " + k.suit;
+        let inner = "";
+        if (k.suit === "z") inner = '<div class="n" style="font-size:16px">' + k.label + '</div>';
+        else inner = '<div class="n">' + k.num + '</div><div class="s">' + k.suitLabel + '</div>';
+        d.innerHTML = inner;
+        d.title = "点击删除";
+        d.addEventListener("click", function () {
+          pickerCounts[t] = Math.max(0, (pickerCounts[t] || 0) - 1);
+          renderPicker();
+          renderSelected();
+          updatePickerHint();
+        });
+        box.appendChild(d);
+      });
+    }
+    const steps = document.getElementById("pickerSteps");
+    const targets = [2, 5, 8, 11, 14];
+    steps.innerHTML = "";
+    targets.forEach(function (n) {
+      const sp = document.createElement("span");
+      sp.textContent = n + " 张";
+      if (arr.length === n) sp.className = "on";
+      steps.appendChild(sp);
+    });
   }
   function openPicker() {
     pickerCounts.length = 0;
@@ -589,6 +653,7 @@
       for (let t = 0; t < kinds.length; t++) pickerCounts[t] = c[t] || 0;
     }
     renderPicker();
+    renderSelected();
     updatePickerHint();
     const panel = document.getElementById("pickerPanel");
     panel.style.display = "";
