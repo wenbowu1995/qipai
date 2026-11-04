@@ -69,6 +69,7 @@
                  border-radius:50%; pointer-events:none; }
   .safety-danger { border:3px solid rgba(231,76,60,.95); box-shadow:0 0 12px rgba(231,76,60,.55); }
   .safety-warn { border:3px dashed rgba(217,164,65,.95); }
+  .threat-mark { border:3px dotted rgba(231,76,60,.9); }
   #safetyHint .danger { color:#ff8a80; }
   #safetyHint .warn { color:#e8c87f; }
 
@@ -105,6 +106,7 @@
 <div class="panel">
   <h1>中国象棋</h1>
   <div class="status" id="status">红方先行</div>
+  <div class="hint" id="threatHint"></div>
   <div class="hint" id="safetyHint"></div>
   <div class="evalbar"><div class="evalbar-red" id="evalBarRed"></div><div class="evalbar-black"></div><div class="evalbar-label" id="evalBarLabel">均势</div></div>
   <div class="row">
@@ -1030,8 +1032,37 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
       d.style.top = py(m.ty) + "px";
       marksEl.appendChild(d);
     }
+    renderThreat();
     renderSafety();
     updateStatus();
+  }
+
+  function renderThreat() {
+    const el = document.getElementById("threatHint");
+    if (!el) return;
+    const lm = state.lastMove;
+    if (!lm || state.over) { el.textContent = ""; return; }
+    const mover = state.board[lm.ty * W + lm.tx];
+    if (!mover) { el.textContent = ""; return; }
+    const enemy = mover.side;
+    const mySide = enemy === X.RED ? X.BLACK : X.RED;
+    if (state.turn !== mySide) { el.textContent = ""; return; }
+    const moves = X.legalMoves(state.board, enemy).filter(m => m.fx === lm.tx && m.fy === lm.ty);
+    const targets = [];
+    for (const m of moves) {
+      const q = state.board[m.ty * W + m.tx];
+      if (q && q.side === mySide) targets.push({ x: m.tx, y: m.ty, q: q });
+    }
+    for (const t of targets) {
+      const d = document.createElement("div");
+      d.className = "safety-mark threat-mark";
+      d.style.left = px(t.x) + "px";
+      d.style.top = py(t.y) + "px";
+      marksEl.appendChild(d);
+    }
+    const name = (enemy === X.RED ? "红" : "黑") + X.CH[enemy][mover.type];
+    if (!targets.length) { el.textContent = "对手刚走：" + name + "　暂无直接威胁"; return; }
+    el.innerHTML = "对手刚走：<b>" + name + "</b>　威胁：" + targets.map(t => X.CH[mySide][t.q.type]).join("、");
   }
 
   function renderSafety() {
