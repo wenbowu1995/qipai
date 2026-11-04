@@ -72,6 +72,8 @@
   .threat-mark { border:3px dotted rgba(231,76,60,.9); }
   #safetyHint .danger { color:#ff8a80; }
   #safetyHint .warn { color:#e8c87f; }
+  #materialHint .mat-red { color:#ff6b6b; }
+  #materialHint .mat-black { color:#111; background:#e6d8b8; border-radius:4px; padding:0 4px; }
 
   .piece.moved { box-shadow:0 0 0 3px #ffd54f, 0 0 20px 5px rgba(255,213,79,.8); z-index:6;
                  animation:pulse .42s ease-out 2; }
@@ -1113,13 +1115,18 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
     const namesR = { R: "车", N: "马", C: "炮", A: "仕", B: "相", P: "兵" };
     const namesB = { R: "车", N: "马", C: "炮", A: "士", B: "象", P: "卒" };
     const order = ["R", "N", "C", "A", "B", "P"];
-    const parts = [];
+    const redParts = [], blackParts = [];
     for (const t of order) {
       const d = cnt.r[t] - cnt.b[t];
-      if (d > 0) parts.push("红 " + d + namesR[t]);
-      else if (d < 0) parts.push("黑 " + (-d) + namesB[t]);
+      if (d > 0) redParts.push("红 " + d + namesR[t]);
+      else if (d < 0) blackParts.push("黑 " + (-d) + namesB[t]);
     }
-    el.textContent = parts.length ? "子力领先：" + parts.join(" · ") : "子力均势";
+    if (!redParts.length && !blackParts.length) { el.textContent = "子力均势"; return; }
+    let html = "子力领先：";
+    if (redParts.length) html += '<span class="mat-red">' + redParts.join(" · ") + "</span>";
+    if (redParts.length && blackParts.length) html += "　";
+    if (blackParts.length) html += '<span class="mat-black">' + blackParts.join(" · ") + "</span>";
+    el.innerHTML = html;
   }
 
   function updateStatus() {
