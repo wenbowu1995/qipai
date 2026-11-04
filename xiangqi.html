@@ -106,8 +106,7 @@
 <div class="panel">
   <h1>中国象棋</h1>
   <div class="status" id="status">红方先行</div>
-  <div class="hint" id="threatHint"></div>
-  <div class="hint" id="safetyHint"></div>
+  <div class="hint" id="materialHint"></div>
   <div class="evalbar"><div class="evalbar-red" id="evalBarRed"></div><div class="evalbar-black"></div><div class="evalbar-label" id="evalBarLabel">均势</div></div>
   <div class="row">
     <button class="primary" id="btnNew">重新开始</button>
@@ -1034,19 +1033,18 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
     }
     renderThreat();
     renderSafety();
+    renderMaterial();
     updateStatus();
   }
 
   function renderThreat() {
-    const el = document.getElementById("threatHint");
-    if (!el) return;
     const lm = state.lastMove;
-    if (!lm || state.over) { el.textContent = ""; return; }
+    if (!lm || state.over) return;
     const mover = state.board[lm.ty * W + lm.tx];
     if (!mover) { el.textContent = ""; return; }
     const enemy = mover.side;
     const mySide = enemy === X.RED ? X.BLACK : X.RED;
-    if (state.turn !== mySide) { el.textContent = ""; return; }
+    if (state.turn !== mySide) return;
     const moves = X.legalMoves(state.board, enemy).filter(m => m.fx === lm.tx && m.fy === lm.ty);
     const targets = [];
     for (const m of moves) {
@@ -1060,14 +1058,10 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
       d.style.top = py(t.y) + "px";
       marksEl.appendChild(d);
     }
-    const name = (enemy === X.RED ? "红" : "黑") + X.CH[enemy][mover.type];
-    if (!targets.length) { el.textContent = "对手刚走：" + name + "　暂无直接威胁"; return; }
-    el.innerHTML = "对手刚走：<b>" + name + "</b>　威胁：" + targets.map(t => X.CH[mySide][t.q.type]).join("、");
   }
 
   function renderSafety() {
-    const hintEl = document.getElementById("safetyHint");
-    if (state.over) { if (hintEl) hintEl.textContent = ""; return; }
+    if (state.over) return;
     const side = state.mode === "ai" ? X.RED : state.turn;
     const opp = side === X.RED ? X.BLACK : X.RED;
     const oppMoves = X.legalMoves(state.board, opp);
@@ -1104,12 +1098,28 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
         marksEl.appendChild(d);
       }
     }
-    if (!hintEl) return;
-    if (!danger.length && !warn.length) { hintEl.textContent = "安全提醒：暂无被攻击的子"; return; }
-    let html = "安全提醒：";
-    if (danger.length) html += '<span class="danger">' + danger.join("；") + "</span>";
-    if (warn.length) html += (danger.length ? "；" : "") + '<span class="warn">' + warn.join("；") + "</span>";
-    hintEl.innerHTML = html;
+  }
+
+  function renderMaterial() {
+    const el = document.getElementById("materialHint");
+    if (!el) return;
+    if (state.over) { el.textContent = ""; return; }
+    const cnt = { r: {}, b: {} };
+    for (const side of ["r", "b"]) for (const t of ["R", "N", "C", "A", "B", "P"]) cnt[side][t] = 0;
+    for (let i = 0; i < 90; i++) {
+      const p = state.board[i];
+      if (p && p.type !== "K") cnt[p.side][p.type]++;
+    }
+    const namesR = { R: "车", N: "马", C: "炮", A: "仕", B: "相", P: "兵" };
+    const namesB = { R: "车", N: "马", C: "炮", A: "士", B: "象", P: "卒" };
+    const order = ["R", "N", "C", "A", "B", "P"];
+    const parts = [];
+    for (const t of order) {
+      const d = cnt.r[t] - cnt.b[t];
+      if (d > 0) parts.push("红 " + d + namesR[t]);
+      else if (d < 0) parts.push("黑 " + (-d) + namesB[t]);
+    }
+    el.textContent = parts.length ? "子力领先：" + parts.join(" · ") : "子力均势";
   }
 
   function updateStatus() {
