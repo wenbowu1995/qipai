@@ -65,6 +65,12 @@
   .log { margin-top:8px; background:#241a12; border-radius:8px; padding:8px; height:290px; overflow:auto;
          font-size:13px; line-height:1.7; font-family:Consolas,monospace; white-space:pre-wrap; }
   .hint { font-size:12px; opacity:.7; line-height:1.6; margin-top:8px; }
+  .safety-mark { position:absolute; width:54px; height:54px; margin-left:-27px; margin-top:-27px;
+                 border-radius:50%; pointer-events:none; }
+  .safety-danger { border:3px solid rgba(231,76,60,.95); box-shadow:0 0 12px rgba(231,76,60,.55); }
+  .safety-warn { border:3px dashed rgba(217,164,65,.95); }
+  #safetyHint .danger { color:#ff8a80; }
+  #safetyHint .warn { color:#e8c87f; }
 
   .piece.moved { box-shadow:0 0 0 3px #ffd54f, 0 0 20px 5px rgba(255,213,79,.8); z-index:6;
                  animation:pulse .42s ease-out 2; }
@@ -99,6 +105,7 @@
 <div class="panel">
   <h1>中国象棋</h1>
   <div class="status" id="status">红方先行</div>
+  <div class="hint" id="safetyHint"></div>
   <div class="evalbar"><div class="evalbar-red" id="evalBarRed"></div><div class="evalbar-black"></div><div class="evalbar-label" id="evalBarLabel">均势</div></div>
   <div class="row">
     <button class="primary" id="btnNew">重新开始</button>
@@ -706,7 +713,7 @@
     return best;
   }
 
-  const api = { W, H, RED, BLACK, CH, VAL, MATE, newBoard, genMoves, legalMoves, apply, undo, inCheck, evaluate, bestMove, findKing, keyOf, fenOf, parseFen, analyzePosition, setPstWeight, setSafeWeight, setHistWeight, setTtWeight };
+  const api = { W, H, RED, BLACK, CH, VAL, MATE, newBoard, genMoves, legalMoves, apply, undo, inCheck, evaluate, bestMove, findKing, keyOf, fenOf, parseFen, analyzePosition, setPstWeight, setSafeWeight, setHistWeight, setTtWeight, attacked };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else global.Xiangqi = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
@@ -1023,7 +1030,55 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
       d.style.top = py(m.ty) + "px";
       marksEl.appendChild(d);
     }
+    renderSafety();
     updateStatus();
+  }
+
+  function renderSafety() {
+    const hintEl = document.getElementById("safetyHint");
+    if (state.over) { if (hintEl) hintEl.textContent = ""; return; }
+    const side = state.mode === "ai" ? X.RED : state.turn;
+    const opp = side === X.RED ? X.BLACK : X.RED;
+    const oppMoves = X.legalMoves(state.board, opp);
+    const danger = [], warn = [];
+    for (let sq = 0; sq < 90; sq++) {
+      const p = state.board[sq];
+      if (!p || p.side !== side || p.type === "K") continue;
+      const x = sq % W, y = Math.floor(sq / W);
+      let minVal = Infinity, minType = null;
+      for (const m of oppMoves) {
+        if (m.tx !== x || m.ty !== y) continue;
+        const a = state.board[m.fy * W + m.fx];
+        if (!a) continue;
+        const v = X.VAL[a.type];
+        if (v < minVal) { minVal = v; minType = a.type; }
+      }
+      if (!minType) continue;
+      const myVal = X.VAL[p.type];
+      const hasRoot = X.attacked(state.board, sq, side);
+      const name = X.CH[side][p.type], att = X.CH[opp][minType];
+      let mark = null;
+      if (!hasRoot && minVal <= myVal) {
+        mark = "safety-danger";
+        danger.push(name + "无根，会被" + att + "吃");
+      } else if (hasRoot && minVal < myVal) {
+        mark = "safety-warn";
+        warn.push(name + "被" + att + "攻击");
+      }
+      if (mark) {
+        const d = document.createElement("div");
+        d.className = "safety-mark " + mark;
+        d.style.left = px(x) + "px";
+        d.style.top = py(y) + "px";
+        marksEl.appendChild(d);
+      }
+    }
+    if (!hintEl) return;
+    if (!danger.length && !warn.length) { hintEl.textContent = "安全提醒：暂无被攻击的子"; return; }
+    let html = "安全提醒：";
+    if (danger.length) html += '<span class="danger">' + danger.join("；") + "</span>";
+    if (warn.length) html += (danger.length ? "；" : "") + '<span class="warn">' + warn.join("；") + "</span>";
+    hintEl.innerHTML = html;
   }
 
   function updateStatus() {
