@@ -1210,7 +1210,7 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
         const winner = state.turn === X.RED ? "黑方" : "红方";
         statusEl.innerHTML = "<b>" + winner + "长将，判负</b>";
       } else {
-        statusEl.innerHTML = "<b>三次重复局面，和棋</b>";
+        statusEl.innerHTML = "<b>三次重复局面，判和（重复违规）</b>";
       }
     }
     render();
@@ -1220,7 +1220,7 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
         const useBook = true;
         const bm = useBook ? bookMove(state.board, X.BLACK) : null;
         if (bm) { doMove(bm); return; }
-        const mv = X.bestMove(state.board, X.BLACK, state.depth, TIME[state.depth] || 1500, state.posKeys);
+        const mv = pickAiMove();
         if (mv) doMove(mv); else updateStatus();
       }, 120);
     }
@@ -1318,11 +1318,38 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
     if (ok && state.mode === "ai" && state.turn === X.BLACK && !state.over) aiReply();
   }
 
+  function analyzeRepeat(board, side, m) {
+    const cap = X.apply(board, m);
+    const next = side === X.RED ? X.BLACK : X.RED;
+    const key = X.keyOf(board, next);
+    const cnt = state.posKeys.filter(k => k === key).length;
+    const check = X.inCheck(board, next);
+    X.undo(board, m, cap);
+    return { cnt: cnt, check: check, bad: cnt >= 2 || (check && cnt >= 1) };
+  }
+
+  function pickAiMove() {
+    const side = X.BLACK;
+    const mv = X.bestMove(state.board, side, state.depth, TIME[state.depth] || 1500, state.posKeys);
+    if (!mv) return null;
+    if (!analyzeRepeat(state.board, side, mv).bad) return mv;
+    const alts = X.legalMoves(state.board, side).filter(m => !analyzeRepeat(state.board, side, m).bad);
+    if (!alts.length) return mv;
+    let best = null, bestScore = -Infinity;
+    for (const m of alts) {
+      const cap = X.apply(state.board, m);
+      const score = X.evaluate(state.board, side);
+      X.undo(state.board, m, cap);
+      if (score > bestScore) { bestScore = score; best = m; }
+    }
+    return best || mv;
+  }
+
   function aiReply() {
     setTimeout(() => {
       const bm = bookMove(state.board, X.BLACK);
       if (bm) { doMove(bm); return; }
-      const mv = X.bestMove(state.board, X.BLACK, state.depth, TIME[state.depth] || 1500, state.posKeys);
+      const mv = pickAiMove();
       if (mv) doMove(mv); else updateStatus();
     }, 250);
   }
