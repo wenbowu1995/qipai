@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2b2118">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -11,6 +11,7 @@
   :root { --wood:#e9c68f; --line:#7a5230; --red:#b03028; --black:#23303f; }
   * { box-sizing:border-box; }
   html { -webkit-text-size-adjust:100%; }
+  html, body { touch-action: manipulation; }
   body { margin:0; font-family:"Microsoft YaHei","PingFang SC",sans-serif; background:#2b2118;
          color:#f0e6d2; display:flex; gap:24px; justify-content:center; padding:24px; flex-wrap:wrap;
          min-height:100vh; min-height:100dvh; overflow-x:hidden; overflow-y:auto;
@@ -1227,7 +1228,7 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
   }
   function undo() {
     if (!state.history.length) return;
-    const times = state.mode === "ai" ? 2 : 1;
+    const times = state.mode === "ai" ? (state.turn === X.RED ? 2 : 1) : 1;
     for (let k = 0; k < times && state.history.length; k++) {
       const h = state.history.pop();
       X.undo(state.board, h.m, h.cap);
@@ -1386,6 +1387,19 @@ const BOOK = {"bRbNbBbAbKbAbBbNbR..........bC.....bC.bP.bP.bP.bP.bP.............
 
   drawLines();
   render();
+})();
+</script>
+
+
+<script>
+(function () {
+  var lastTouch = 0;
+  document.addEventListener("touchend", function (e) {
+    var now = Date.now();
+    if (now - lastTouch < 300) e.preventDefault();
+    lastTouch = now;
+  }, { passive: false });
+  document.addEventListener("dblclick", function (e) { e.preventDefault(); }, { passive: false });
 })();
 </script>
 <script>

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>棋牌 · 象棋与麻将</title>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2b2118">
@@ -10,6 +10,7 @@
 <style>
   :root { --bg:#1f1a16; --panel:#2e2620; --ink:#f0e6d2; --gold:#a9713c; }
   * { box-sizing:border-box; }
+  html, body { touch-action: manipulation; }
   body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink);
          font-family:"Microsoft YaHei","PingFang SC",sans-serif; display:flex; align-items:center; justify-content:center; padding:24px; }
   .wrap { width:100%; max-width:760px; }
@@ -78,6 +79,19 @@ if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("sw.js").catch(function () {});
   });
 }
+</script>
+
+
+<script>
+(function () {
+  var lastTouch = 0;
+  document.addEventListener("touchend", function (e) {
+    var now = Date.now();
+    if (now - lastTouch < 300) e.preventDefault();
+    lastTouch = now;
+  }, { passive: false });
+  document.addEventListener("dblclick", function (e) { e.preventDefault(); }, { passive: false });
+})();
 </script>
 </body>
 </html>

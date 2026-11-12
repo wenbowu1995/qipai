@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#2b2118">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -10,6 +10,7 @@
 <style>
   :root { --bg:#1f1a16; --panel:#2e2620; --card:#f6f1e6; --ink:#2b2118; --red:#b03028; --blue:#2b3a8f; --green:#1e7a46; }
   * { box-sizing:border-box; }
+  html, body { touch-action: manipulation; }
   body { margin:0; padding:16px; background:var(--bg); color:#f0e6d2; font-family:"Microsoft YaHei","PingFang SC",sans-serif;
          min-height:100vh; min-height:100dvh; overflow-x:hidden; -webkit-overflow-scrolling:touch; }
   .wrap { max-width:780px; margin:0 auto; }
@@ -791,6 +792,19 @@
   document.getElementById("helpModal").addEventListener("click", function (e) {
     if (e.target === this) this.hidden = true;
   });
+})();
+</script>
+
+
+<script>
+(function () {
+  var lastTouch = 0;
+  document.addEventListener("touchend", function (e) {
+    var now = Date.now();
+    if (now - lastTouch < 300) e.preventDefault();
+    lastTouch = now;
+  }, { passive: false });
+  document.addEventListener("dblclick", function (e) { e.preventDefault(); }, { passive: false });
 })();
 </script>
 <script>
